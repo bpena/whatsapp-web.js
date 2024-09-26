@@ -76,5 +76,6 @@ typings/
 .wwebjs_cache/
 
 # IDE's
+.history
 .idea
 .vscode
