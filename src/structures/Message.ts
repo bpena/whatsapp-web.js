@@ -1,9 +1,11 @@
 'use strict';
 
-import { Client } from '../Client';
+import { Client, MessageSendOptions } from '../Client';
 import { MessageAck, MessageTypes } from '../util/Constants';
 import { Base } from './Base';
-import { Contact } from './Contact';
+import { Chat } from './Chat';
+import { Contact, ContactId } from './Contact';
+import { GroupChat } from './GroupChat';
 import { Location } from './Location';
 import { MessageMedia } from './MessageMedia';
 import { Order } from './Order';
@@ -24,6 +26,22 @@ interface GroupMention {
         user: string;
         _serialized: string;
     };
+}
+
+interface MessageInfo {
+    delivery: Array<{ id: ContactId; t: number; }>;
+    deliveryRemaining: number;
+    played: Array<{ id: ContactId; t: number; }>;
+    playedRemaining: number;
+    read: Array<{ id: ContactId; t: number; }>;
+    readRemaining: number;
+}
+
+interface ReactionList {
+    id: string;
+    aggregateEmoji: string;
+    hasReactionByMe: boolean;
+    senders: Array<Reaction>;
 }
 
 /**
@@ -358,7 +376,7 @@ export class Message extends Base {
      * Note that the Message must still be in the web app cache for this to work, otherwise will return null.
      * @returns {Promise<Message>}
      */
-    async reload() {
+    async reload(): Promise<Message> {
         const newData = await this.client.pupPage.evaluate(async (msgId) => {
             const msg = window.Store.Msg.get(msgId) || (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
             if (!msg) return null;
@@ -383,7 +401,7 @@ export class Message extends Base {
      * Returns the Chat this message was sent in
      * @returns {Promise<Chat>}
      */
-    getChat() {
+    getChat(): Promise<Chat> {
         return this.client.getChatById(this._getChatId());
     }
 
@@ -391,7 +409,7 @@ export class Message extends Base {
      * Returns the Contact this message was sent from
      * @returns {Promise<Contact>}
      */
-    getContact() {
+    getContact(): Promise<Contact> {
         return this.client.getContactById(this.author || this.from);
     }
 
@@ -399,7 +417,7 @@ export class Message extends Base {
      * Returns the Contacts mentioned in this message
      * @returns {Promise<Array<Contact>>}
      */
-    async getMentions() {
+    async getMentions(): Promise<Array<Contact>> {
         return await Promise.all(this.mentionedIds.map(async m => await this.client.getContactById(m)));
     }
     
@@ -407,7 +425,7 @@ export class Message extends Base {
      * Returns groups mentioned in this message
      * @returns {Promise<GroupChat[]|[]>}
      */
-    async getGroupMentions() {
+    async getGroupMentions(): Promise<GroupChat[] | []> {
         return await Promise.all(this.groupMentions.map(async (m) => await this.client.getChatById(m.groupJid._serialized)));
     }
 
@@ -415,7 +433,7 @@ export class Message extends Base {
      * Returns the quoted message, if any
      * @returns {Promise<Message>}
      */
-    async getQuotedMessage() {
+    async getQuotedMessage(): Promise<Message> {
         if (!this.hasQuotedMsg) return undefined;
 
         const quotedMsg = await this.client.pupPage.evaluate(async (msgId) => {
@@ -437,7 +455,7 @@ export class Message extends Base {
      * @param {MessageSendOptions} [options]
      * @returns {Promise<Message>}
      */
-    async reply(content, chatId, options = {}) {
+    async reply(content: string | MessageMedia | Location, chatId: string, options: MessageSendOptions = {}): Promise<Message> {
         if (!chatId) {
             chatId = this._getChatId();
         }
@@ -455,7 +473,7 @@ export class Message extends Base {
      * @param {string} reaction - Emoji to react with. Send an empty string to remove the reaction.
      * @return {Promise}
      */
-    async react(reaction){
+    async react(reaction: string): Promise<any>{
         await this.client.pupPage.evaluate(async (messageId, reaction) => {
             if (!messageId) return null;
             const msg =
@@ -469,7 +487,7 @@ export class Message extends Base {
      * Accept Group V4 Invite
      * @returns {Promise<Object>}
      */
-    async acceptGroupV4Invite() {
+    async acceptGroupV4Invite(): Promise<object> {
         return await this.client.acceptGroupV4Invite(this.inviteV4);
     }
 
@@ -479,7 +497,7 @@ export class Message extends Base {
      * @param {string|Chat} chat Chat model or chat ID to which the message will be forwarded
      * @returns {Promise}
      */
-    async forward(chat) {
+    async forward(chat: string | Chat): Promise<any> {
         const chatId = typeof chat === 'string' ? chat : chat.id._serialized;
 
         await this.client.pupPage.evaluate(async (msgId, chatId) => {
@@ -491,7 +509,7 @@ export class Message extends Base {
      * Downloads and returns the attatched message media
      * @returns {Promise<MessageMedia>}
      */
-    async downloadMedia() {
+    async downloadMedia(): Promise<MessageMedia> {
         if (!this.hasMedia) {
             return undefined;
         }
@@ -547,7 +565,7 @@ export class Message extends Base {
      * Deletes a message from the chat
      * @param {?boolean} everyone If true and the message is sent by the current user or the user is an admin, will delete it for everyone in the chat.
      */
-    async delete(everyone) {
+    async delete(everyone: boolean | null) {
         await this.client.pupPage.evaluate(async (msgId, everyone) => {
             const msg = window.Store.Msg.get(msgId) || (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
             let chat = await window.Store.Chat.find(msg.id.remote);
@@ -596,7 +614,7 @@ export class Message extends Base {
      * @param {number} duration The duration in seconds the message will be pinned in a chat
      * @returns {Promise<boolean>} Returns true if the operation completed successfully, false otherwise
      */
-    async pin(duration) {
+    async pin(duration: number): Promise<boolean> {
         return await this.client.pupPage.evaluate(async (msgId, duration) => {
             return await window.WWebJS.pinUnpinMsgAction(msgId, 1, duration);
         }, this.id._serialized, duration);
@@ -606,34 +624,23 @@ export class Message extends Base {
      * Unpins the message (group admins can unpin messages of all group members)
      * @returns {Promise<boolean>} Returns true if the operation completed successfully, false otherwise
      */
-    async unpin() {
+    async unpin(): Promise<boolean> {
         return await this.client.pupPage.evaluate(async (msgId) => {
             return await window.WWebJS.pinUnpinMsgAction(msgId, 2);
         }, this.id._serialized);
     }
 
     /**
-     * Message Info
-     * @typedef {Object} MessageInfo
-     * @property {Array<{id: ContactId, t: number}>} delivery Contacts to which the message has been delivered to
-     * @property {number} deliveryRemaining Amount of people to whom the message has not been delivered to
-     * @property {Array<{id: ContactId, t: number}>} played Contacts who have listened to the voice message
-     * @property {number} playedRemaining Amount of people who have not listened to the message
-     * @property {Array<{id: ContactId, t: number}>} read Contacts who have read the message
-     * @property {number} readRemaining Amount of people who have not read the message
-     */
-
-    /**
      * Get information about message delivery status.
      * May return null if the message does not exist or is not sent by you.
      * @returns {Promise<?MessageInfo>}
      */
-    async getInfo() {
+    async getInfo(): Promise<MessageInfo | null> {
         const info = await this.client.pupPage.evaluate(async (msgId) => {
             const msg = window.Store.Msg.get(msgId) || (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
             if (!msg || !msg.id.fromMe) return null;
 
-            return new Promise((resolve) => {
+            return new Promise<MessageInfo | null>((resolve) => {
                 setTimeout(async () => {
                     resolve(await window.Store.getMsgInfo(msg.id));
                 }, (Date.now() - msg.t * 1000 < 1250) && Math.floor(Math.random() * (1200 - 1100 + 1)) + 1100 || 0);
@@ -647,7 +654,7 @@ export class Message extends Base {
      * Gets the order associated with a given message
      * @return {Promise<Order>}
      */
-    async getOrder() {
+    async getOrder(): Promise<Order> {
         if (this.type === MessageTypes.ORDER) {
             const result = await this.client.pupPage.evaluate((orderId, token, chatId) => {
                 return window.WWebJS.getOrderDetail(orderId, token, chatId);
@@ -661,7 +668,7 @@ export class Message extends Base {
      * Gets the payment details associated with a given message
      * @return {Promise<Payment>}
      */
-    async getPayment() {
+    async getPayment(): Promise<Payment> {
         if (this.type === MessageTypes.PAYMENT) {
             const msg = await this.client.pupPage.evaluate(async (msgId) => {
                 const msg = window.Store.Msg.get(msgId) || (await window.Store.Msg.getMessagesById([msgId]))?.messages?.[0];
@@ -673,21 +680,11 @@ export class Message extends Base {
         return undefined;
     }
 
-
-    /**
-     * Reaction List
-     * @typedef {Object} ReactionList
-     * @property {string} id Original emoji
-     * @property {string} aggregateEmoji aggregate emoji
-     * @property {boolean} hasReactionByMe Flag who sent the reaction
-     * @property {Array<Reaction>} senders Reaction senders, to this message
-     */
-
     /**
      * Gets the reactions associated with the given message
      * @return {Promise<ReactionList[]>}
      */
-    async getReactions() {
+    async getReactions(): Promise<ReactionList[]> {
         if (!this.hasReaction) {
             return undefined;
         }
@@ -717,7 +714,7 @@ export class Message extends Base {
      * @param {MessageEditOptions} [options] - Options used when editing the message
      * @returns {Promise<?Message>}
      */
-    async edit(content, options: any = {}) {
+    async edit(content: string, options: any = {}): Promise<Message | null> {
         if (options.mentions) {
             !Array.isArray(options.mentions) && (options.mentions = [options.mentions]);
             if (options.mentions.some((possiblyContact) => possiblyContact instanceof Contact)) {

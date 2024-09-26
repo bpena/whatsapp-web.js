@@ -3,7 +3,7 @@ import { MessageMedia } from "./MessageMedia";
 
 
 interface ButtonSpec {
-    id: string;
+    id?: string;
     body: string;
 }
 
@@ -16,7 +16,7 @@ interface FormattedButtonSpec {
 /**
  * Message type buttons
  */
-class Buttons {
+export class Buttons {
     body: string|MessageMedia;
     buttons: FormattedButtonSpec[];
     title: string;

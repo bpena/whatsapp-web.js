@@ -10,7 +10,7 @@ import { BaseAuthStrategy } from './BaseAuthStrategy';
  * @param {string} options.clientId - Client id to distinguish instances if you are using multiple, otherwise keep null if you are using only one instance
  * @param {string} options.dataPath - Change the default path for saving session files, default is: "./.wwebjs_auth/" 
 */
-class LocalAuth extends BaseAuthStrategy {
+export class LocalAuth extends BaseAuthStrategy {
     dataPath: string;
     clientId: string;
     userDataDir: string;

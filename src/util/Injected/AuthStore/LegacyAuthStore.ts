@@ -1,6 +1,6 @@
 //TODO: To be removed by version 2.3000.x hard release
 
-exports.ExposeLegacyAuthStore = (moduleRaidStr: any) => {
+export const ExposeLegacyAuthStore = (moduleRaidStr: any) => {
     // Definir la interfaz para moduleRaid si es posible, o usar `any` si no conoces su tipo
     let moduleRaid: any;
 

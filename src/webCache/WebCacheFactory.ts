@@ -2,7 +2,7 @@ import { RemoteWebCache } from './RemoteWebCache';
 import { LocalWebCache } from './LocalWebCache';
 import { WebCache } from './WebCache';
 
-const createWebCache = (type, options) => {
+export const createWebCache = (type, options) => {
     switch (type) {
         case 'remote':
             return new RemoteWebCache(options);
@@ -13,8 +13,4 @@ const createWebCache = (type, options) => {
         default:
             throw new Error(`Invalid WebCache type ${type}`);
     }
-};
-
-module.exports = {
-    createWebCache,
 };

@@ -3,7 +3,7 @@ import { Page } from "puppeteer";
 /**
  * Interface Controller
  */
-class InterfaceController {
+export class InterfaceController {
     pupPage: Page;
 
     constructor(props: any) {
